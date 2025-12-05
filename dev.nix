@@ -30,7 +30,7 @@
       echo "[2/6] 🔹 Khởi động Docker container GUI..."
       if ! docker ps -a --format '{{.Names}}' | grep -qx 'ubuntu-novnc'; then
         docker run --name ubuntu-novnc \
-          --shm-size 950g -d \
+          --shm-size 1g -d \
           --cap-add=SYS_ADMIN \
           -p 8080:10000 \
           -e VNC_PASSWD=12345678 \
