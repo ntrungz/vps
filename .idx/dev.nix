@@ -32,8 +32,7 @@
         docker run --name ubuntu-novnc \
           --shm-size 1g -d \
           --cap-add=SYS_ADMIN \
-          -p 8080:10000 \
-          --network host \ # DÒNG ĐÃ THÊM: Sử dụng mạng của host để đảm bảo truy cập internet
+          --network host \
           -e VNC_PASSWD=12345678 \
           -e PORT=10000 \
           -e AUDIO_PORT=1699 \
@@ -48,7 +47,6 @@
       fi
 
       # Install Chrome inside the container (sudo only here)
-      # Lệnh này bây giờ sẽ hoạt động nhờ có mạng
       docker exec -it ubuntu-novnc bash -lc "
         sudo apt update &&
         sudo apt remove -y firefox || true &&
