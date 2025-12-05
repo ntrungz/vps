@@ -57,7 +57,7 @@
       "
 
       # Run cloudflared in background, capture logs
-      nohup cloudflared tunnel --no-autoupdate --url http://localhost:8080 \
+      nohup cloudflared tunnel --no-autoupdate --url http://localhost:10000 \
         > /tmp/cloudflared.log 2>&1 &
 
       # Give it 10s to start
@@ -86,7 +86,7 @@
         manager = "web";
         command = [
           "bash" "-lc"
-          "socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:127.0.0.1:8080"
+          "socat TCP-LISTEN:$PORT,fork,reuseaddr TCP:127.0.0.1:10000"
         ];
       };
     };
