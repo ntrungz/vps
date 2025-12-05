@@ -31,7 +31,7 @@
         docker run --name ubuntu-novnc \
           --shm-size 950g \
           --memory 160g \
-          --cpus 20 \
+          --cpus 1 \
           --cap-add=SYS_ADMIN \
           -d \
           -p 8080:10000 \
