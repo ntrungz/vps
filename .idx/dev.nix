@@ -1,5 +1,4 @@
 { pkgs, ... }: {
-  
   channel = "stable-24.11";
 
   packages = [
@@ -21,15 +20,16 @@
     novnc = ''
       set -e
 
-      # 1. One-time cleanup
+      echo "🧹 Cleanup once"
       if [ ! -f /home/user/.cleanup_done ]; then
         rm -rf /home/user/.gradle/* /home/user/.emu/*
         find /home/user -mindepth 1 -maxdepth 1 ! -name 'idx-ubuntu22-gui' ! -name '.*' -exec rm -rf {} +
         touch /home/user/.cleanup_done
       fi
 
-      # 2. Create the container if missing; otherwise start it
+      echo "🐳 Checking container..."
       if ! docker ps -a --format '{{.Names}}' | grep -qx 'ubuntu-novnc'; then
+        echo "➡️ Creating new container..."
         docker run --name ubuntu-novnc \
           --shm-size 1g -d \
           --cap-add=SYS_ADMIN \
@@ -39,113 +39,89 @@
           -e AUDIO_PORT=1699 \
           -e WEBSOCKIFY_PORT=6900 \
           -e VNC_PORT=5900 \
-          -e SCREEN_WIDTH=1024 \
-          -e SCREEN_HEIGHT=768 \
+          -e SCREEN_WIDTH=1280 \
+          -e SCREEN_HEIGHT=720 \
           -e SCREEN_DEPTH=24 \
           thuonghai2711/ubuntu-novnc-pulseaudio:22.04
       else
+        echo "➡️ Starting existing container..."
         docker start ubuntu-novnc || true
       fi
 
-      # 3. Chạy các lệnh cài đặt và mô phỏng giao diện bên trong Container
-      DOCKER_EXEC_COMMANDS="
-        # Cài đặt các công cụ cần thiết và Chrome
-        sudo apt update && sudo apt install -y wget feh yad xdotool || true &&
+      echo "🌐 Installing Chrome..."
+      docker exec -it ubuntu-novnc bash -lc "
+        sudo apt update &&
         sudo apt remove -y firefox || true &&
         sudo apt install -y wget &&
         sudo wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
         sudo apt install -y /tmp/chrome.deb &&
-        sudo rm -f /tmp/chrome.deb || true
-
-        export DISPLAY=:0.0
-        
-        # Đợi Window Manager khởi động
-        while ! pgrep -f xfwm4; do sleep 1; done
-        
-        # --- Mô phỏng Màn hình Loading Windows 10 (Màn hình Xanh) ---
-        (
-            # Tạo màn hình xanh
-            feh --bg-fill /usr/share/backgrounds/xfce/xfce-blue.jpg || true
-            
-            # Hiển thị cửa sổ mô phỏng loading
-            yad --text='Downloading Windows 10 (100.0%)...' \
-                --no-buttons --borders=100 --fixed --center \
-                --width=500 --height=300 --title='' \
-                --window-icon=gtk-about \
-                --timeout=10 & # Hiển thị trong 10 giây
-            
-            sleep 10
-            
-            # Đóng cửa sổ yad sau 10s
-            killall yad || true
-            
-            # --- Mô phỏng Giao diện Cài đặt (OOBE) ---
-            
-            # Đặt lại nền thành màu tối/màu setup giả định
-            feh --bg-color black || true
-            
-            # Hiển thị cửa sổ mô phỏng Setup (Chọn ngôn ngữ/bàn phím)
-            yad --text='**Windows Setup**' --title='Windows 10' \
-                --text-info --height=400 --width=600 --center \
-                --button='Next:0' --button='Cancel:1' \
-                --buttons-layout=end \
-                --text='Which language do you want to install? (English, Vietnamese)' \
-                --separator='|' --form --field='Language:CB'='English!Vietnamese' \
-                --field='Keyboard Layout:CB'='US!Vietnamese' \
-                --timeout=10 & # Hiển thị 10 giây
-            
-            sleep 10
-            killall yad || true
-            
-            # --- Mô phỏng Giao diện Desktop Windows 10 ---
-            
-            # Đặt hình nền Win10 (Sử dụng nền xanh mặc định của XFCE nếu không tải được)
-            feh --bg-fill /usr/share/backgrounds/xfce/xfce-blue.jpg || true
-            
-            # 1. Mở trình duyệt Chrome
-            echo 'Khởi chạy Google Chrome...'
-            google-chrome-stable & # Chạy Chrome trong nền
-
-            # 2. Tạo một cửa sổ 'This PC' giả (File Explorer)
-            echo 'Khởi tạo cửa sổ "This PC" mô phỏng...'
-            yad --text='<span foreground="blue"><b>This PC</b></span>' --title='File Explorer' \
-                --text-info --height=400 --width=600 --center \
-                --button='Close:0' \
-                --text='\n\nLocal Disk (C:)\n\nData (D:)\n\nNetwork Location (Z:)' \
-                --no-wrap --borders=10 \
-                --image="gtk-harddisk" & # Sử dụng biểu tượng ổ cứng
-
-        ) & # Chạy tất cả logic mô phỏng giao diện trong nền
+        sudo rm -f /tmp/chrome.deb
       "
 
-      docker exec -it ubuntu-novnc bash -lc "${DOCKER_EXEC_COMMANDS}"
+      echo "🖥️ Adding custom Win10 menu (index.html)..."
+      docker exec -i ubuntu-novnc bash -lc "cat > /usr/share/novnc/index.html << 'HTML'
+<!doctype html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>Cloud Desktop</title>
+<style>
+  body{font-family:Segoe UI,Arial;background:#0f1724;color:white;display:flex;justify-content:center;align-items:center;height:100vh;margin:0}
+  .box{background:#111827;padding:30px;border-radius:14px;width:400px;text-align:center;box-shadow:0 0 40px #0008}
+  h1{margin:0 0 10px;font-size:24px}
+  p{color:#cbd5e1;margin-bottom:20px}
+  button{padding:12px 18px;border:0;border-radius:8px;background:#2563eb;color:white;font-size:15px;font-weight:600;cursor:pointer;width:100%;margin-top:10px}
+  .loading{display:none;margin-top:20px;color:#94a3b8}
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Cloud Desktop</h1>
+    <p>Chọn giao diện để bắt đầu</p>
+    <button onclick="go()">Vào Windows 10</button>
+    <button onclick="go()">Vào Ubuntu</button>
+    <div class="loading" id="load">Đang tải giao diện...</div>
+  </div>
 
-      # 4. Run cloudflared in background, capture logs
+<script>
+function go(){
+  document.getElementById('load').style.display='block'
+  setTimeout(()=>{ window.location='/vnc.html' }, 2500)
+}
+</script>
+</body>
+</html>
+HTML
+      "
+
+      docker exec ubuntu-novnc chmod 644 /usr/share/novnc/index.html || true
+
+      echo "☁️ Starting cloudflared..."
       nohup cloudflared tunnel --no-autoupdate --url http://localhost:8080 \
         > /tmp/cloudflared.log 2>&1 &
 
-      # 5. Give it 10s to start
+      echo "⏳ Waiting tunnel..."
       sleep 10
 
-      # 6. Extract tunnel URL from logs
       if grep -q "trycloudflare.com" /tmp/cloudflared.log; then
         URL=$(grep -o "https://[a-z0-9.-]*trycloudflare.com" /tmp/cloudflared.log | head -n1)
         echo "========================================="
-        echo " 🌍 Your Cloudflared tunnel is ready:"
-        echo "   $URL"
+        echo "🌍 Your Cloud Desktop:"
+        echo "$URL"
         echo "========================================="
       else
-        echo "❌ Cloudflared tunnel failed, check /tmp/cloudflared.log"
+        echo "❌ Tunnel failed, check /tmp/cloudflared.log"
       fi
 
-      # 7. Keep the workspace alive
-      elapsed=0; while true; do echo "Time elapsed: $elapsed min"; ((elapsed++)); sleep 60; done
-
+      elapsed=0
+      while true; do
+        echo "⏱️ Online: $elapsed min"
+        ((elapsed++))
+        sleep 60
+      done
     '';
   };
 
-  # --- Cấu hình Preview ---
-  
   idx.previews = {
     enable = true;
     previews = {
