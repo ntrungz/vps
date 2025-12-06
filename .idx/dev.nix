@@ -46,7 +46,7 @@
           -e VNC_PORT=5900 \
           -e SCREEN_WIDTH=1024 \
           -e SCREEN_HEIGHT=768 \
-          -e SCREEN_DEPTH=24 \
+          -e SCREEN_DEPTH=16 \
           thuonghai2711/ubuntu-novnc-pulseaudio:22.04
       else
         docker start ubuntu-novnc || true
