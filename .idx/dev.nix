@@ -83,8 +83,9 @@
       if [ -n "$URL" ]; then
         echo "========================================="
         echo " 🌍 Your Cloudflared tunnel is ready:"
-        echo "     $URL"
-        echo "========================================="
+        echo "   $URL"
+        echo "  Mật khẩu vps của bạn là:12345678"
+        echo "=========================================="
       else
         echo "❌ Cloudflared tunnel failed, check /tmp/cloudflared.log"
       fi
