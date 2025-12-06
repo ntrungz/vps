@@ -54,14 +54,16 @@
 
       # Wait for Novnc WebSocket
       while ! nc -z localhost 10000; do sleep 1; done
+      echo "Connection to localhost (127.0.0.1) 10000 port [tcp/*] succeeded!"
 
       # Install Chrome + video libraries
+      # Đã fix lỗi libvpx6 -> libvpx7
       docker exec -it ubuntu-novnc bash -lc "
         sudo apt update &&
         sudo apt remove -y firefox || true &&
         sudo apt install -y wget \
           ffmpeg \
-          libvpx6 \
+          libvpx7 \
           libavcodec-extra \
           gstreamer1.0-libav \
           gstreamer1.0-plugins-good \
@@ -95,7 +97,7 @@
       if [ -n "$URL" ]; then
         echo "========================================="
         echo " 🌍 Your Cloudflared tunnel is ready:"
-        echo "     $URL"
+        echo "   $URL"
         echo "========================================="
       else
         echo "❌ Cloudflared tunnel failed, check /tmp/cloudflared.log"
