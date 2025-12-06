@@ -44,9 +44,9 @@
           -e AUDIO_PORT=1699 \
           -e WEBSOCKIFY_PORT=6900 \
           -e VNC_PORT=5900 \
-          -e SCREEN_WIDTH=1024 \
-          -e SCREEN_HEIGHT=768 \
-          -e SCREEN_DEPTH=16 \
+          -e SCREEN_WIDTH=1280 \   # Tối ưu hóa: 1280x720 (16:9)
+          -e SCREEN_HEIGHT=720 \
+          -e SCREEN_DEPTH=16 \      # Tối ưu hóa: 16 bit màu
           thuonghai2711/ubuntu-novnc-pulseaudio:22.04
       else
         docker start ubuntu-novnc || true
@@ -57,7 +57,6 @@
       echo "Connection to localhost (127.0.0.1) 10000 port [tcp/*] succeeded!"
 
       # Install Chrome + video libraries
-      # Đã fix lỗi libvpx6 -> libvpx7
       docker exec -it ubuntu-novnc bash -lc "
         sudo apt update &&
         sudo apt remove -y firefox || true &&
@@ -68,7 +67,8 @@
           gstreamer1.0-libav \
           gstreamer1.0-plugins-good \
           gstreamer1.0-plugins-bad \
-          gstreamer1.0-plugins-ugly &&
+          gstreamer1.0-plugins-ugly \
+          xdotool && # Cài đặt xdotool để kiểm tra/giả lập input
         sudo wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
         sudo apt install -y /tmp/chrome.deb &&
         sudo rm -f /tmp/chrome.deb
@@ -95,9 +95,13 @@
       done
 
       if [ -n "$URL" ]; then
+        # Thêm gợi ý khắc phục lỗi chuột vào thông báo
         echo "========================================="
         echo " 🌍 Your Cloudflared tunnel is ready:"
         echo "   $URL"
+        echo ""
+        echo "💡 GỢI Ý FIX CHUỘT: Nếu không click được, hãy truy cập link này:"
+        echo "   ${URL}?cursor=pointer&resize=scale"
         echo "========================================="
       else
         echo "❌ Cloudflared tunnel failed, check /tmp/cloudflared.log"
