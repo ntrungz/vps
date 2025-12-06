@@ -21,13 +21,17 @@
       mkdir -p ~/vps
       cd ~/vps || cd /
 
-      echo "▶ Khởi động container..."
+      echo "▶ Tạo Docker network cố định cho container..."
+      if ! docker network ls --format '{{.Name}}' | grep -qx 'novnc-net'; then
+        docker network create --subnet=172.25.0.0/16 novnc-net
+      fi
 
-      # Tạo container nếu chưa có
+      echo "▶ Khởi động container NoVNC..."
       if ! docker ps -a --format '{{.Names}}' | grep -qx 'ubuntu-novnc'; then
         docker pull thuonghai2711/ubuntu-novnc-pulseaudio:22.04
 
         docker run --name ubuntu-novnc \
+          --net novnc-net --ip 172.25.0.2 \
           -p 10000:10000 \
           -p 5900:5900 \
           --shm-size 2g \
@@ -37,47 +41,42 @@
         docker start ubuntu-novnc || true
       fi
 
-      echo "⏳ Đang chờ NoVNC khởi động (port 10000)..."
-
-      # Đợi port 10000 mở
+      echo "⏳ Đợi NoVNC khởi động (port 10000)..."
       for i in {1..30}; do
-        if nc -z 127.0.0.1 10000; then
-          echo "✅ NoVNC is ready!"
+        if nc -z 172.25.0.2 10000; then
+          echo "✅ NoVNC ready!"
           break
         fi
         echo "   ➜ Chưa mở, đợi thêm..."
         sleep 2
       done
 
-      # Nếu port không mở → dừng để tránh 502
-      if ! nc -z 127.0.0.1 10000; then
-        echo "❌ NoVNC KHÔNG mở port 10000 → Cloudflared sẽ bị 502 nên mình dừng lại!"
+      if ! nc -z 172.25.0.2 10000; then
+        echo "❌ NoVNC không mở port 10000, Cloudflared sẽ dừng để tránh 502"
         exit 1
       fi
 
       echo "🚀 Khởi chạy Cloudflared..."
-
-      # Chạy Cloudflared và lưu log
-      nohup cloudflared tunnel --url http://localhost:10000 \
+      nohup cloudflared tunnel --url http://172.25.0.2:10000 \
         > /tmp/cloudflared.log 2>&1 &
 
-      # Chờ log Cloudflared
       sleep 10
-
-      # Lấy URL Cloudflare
       URL=$(grep -o "https://[a-z0-9.-]*trycloudflare.com" /tmp/cloudflared.log | head -n1)
 
-      if [ -z "$URL" ]; then
-        echo "❌ Không tìm thấy URL trong log."
-        echo "🔍 Kiểm tra log:  cat /tmp/cloudflared.log"
-      else
-        echo "========================================="
+      echo "========================================="
+      if [ -n "$URL" ]; then
         echo " 🌍 Cloudflared Tunnel:"
         echo "     $URL"
-        echo "========================================="
+      else
+        echo "❌ Không lấy được URL. Kiểm tra /tmp/cloudflared.log"
       fi
 
-      # Giữ session sống
+      echo ""
+      echo " 🔧 Direct Control IP (cố định, cho phần mềm điều khiển):"
+      echo "     172.25.0.2 : 10000"
+      echo "========================================="
+
+      # Giữ script sống
       while true; do sleep 60; done
     '';
   };
@@ -88,7 +87,7 @@
       manager = "web";
       command = [
         "bash" "-lc"
-        "socat TCP-LISTEN:$PORT,fork TCP:127.0.0.1:10000"
+        "socat TCP-LISTEN:$PORT,fork TCP:172.25.0.2:10000"
       ];
     };
   };
