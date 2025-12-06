@@ -21,7 +21,7 @@
     novnc = ''
       set -e
 
-      # Ensure working directory exists
+      # Make sure current directory exists
       mkdir -p ~/vps
       cd ~/vps
 
@@ -44,49 +44,35 @@
           -e AUDIO_PORT=1699 \
           -e WEBSOCKIFY_PORT=6900 \
           -e VNC_PORT=5900 \
-          -e SCREEN_WIDTH=1280 \   # Tối ưu hóa: 1280x720 (16:9)
-          -e SCREEN_HEIGHT=720 \
-          -e SCREEN_DEPTH=16 \      # Tối ưu hóa: 16 bit màu
+          -e SCREEN_WIDTH=1024 \
+          -e SCREEN_HEIGHT=768 \
+          -e SCREEN_DEPTH=24 \
           thuonghai2711/ubuntu-novnc-pulseaudio:22.04
       else
         docker start ubuntu-novnc || true
       fi
 
-      # Wait for Novnc WebSocket
+      # Wait for Novnc WebSocket port
       while ! nc -z localhost 10000; do sleep 1; done
-      echo "Connection to localhost (127.0.0.1) 10000 port [tcp/*] succeeded!"
 
-      # Install Chrome + video libraries
+      # Install Chrome
       docker exec -it ubuntu-novnc bash -lc "
         sudo apt update &&
         sudo apt remove -y firefox || true &&
-        sudo apt install -y wget \
-          ffmpeg \
-          libvpx7 \
-          libavcodec-extra \
-          gstreamer1.0-libav \
-          gstreamer1.0-plugins-good \
-          gstreamer1.0-plugins-bad \
-          gstreamer1.0-plugins-ugly \
-          xdotool && # Cài đặt xdotool để kiểm tra/giả lập input
+        sudo apt install -y wget &&
         sudo wget -O /tmp/chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb &&
         sudo apt install -y /tmp/chrome.deb &&
         sudo rm -f /tmp/chrome.deb
-      "
-
-      # Run Chrome with flags suitable for container
-      docker exec -d ubuntu-novnc bash -lc "
-        google-chrome --no-sandbox --disable-gpu --disable-software-rasterizer &
       "
 
       # Run Cloudflared tunnel
       nohup cloudflared tunnel --no-autoupdate --url http://localhost:10000 \
         > /tmp/cloudflared.log 2>&1 &
 
-      # Wait a bit longer to ensure WebSocket ready
+      # Wait a bit longer to ensure WebSocket is fully ready
       sleep 10
 
-      # Extract Cloudflared URL
+      # Extract Cloudflared URL reliably
       URL=""
       for i in {1..15}; do
         URL=$(grep -o "https://[a-z0-9.-]*trycloudflare.com" /tmp/cloudflared.log | head -n1)
@@ -95,13 +81,9 @@
       done
 
       if [ -n "$URL" ]; then
-        # Thêm gợi ý khắc phục lỗi chuột vào thông báo
         echo "========================================="
         echo " 🌍 Your Cloudflared tunnel is ready:"
-        echo "   $URL"
-        echo ""
-        echo "💡 GỢI Ý FIX CHUỘT: Nếu không click được, hãy truy cập link này:"
-        echo "   ${URL}?cursor=pointer&resize=scale"
+        echo "     $URL"
         echo "========================================="
       else
         echo "❌ Cloudflared tunnel failed, check /tmp/cloudflared.log"
