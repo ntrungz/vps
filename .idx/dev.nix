@@ -21,27 +21,6 @@
     novnc = ''
       set -e
 
-      ########################################
-      # Antigravity install (ADDED - giữ nguyên code khác)
-      ########################################
-      if [ ! -f /etc/apt/sources.list.d/antigravity.list ]; then
-        echo "[+] Installing Antigravity repository"
-
-        sudo mkdir -p /etc/apt/keyrings
-
-        curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | \
-          sudo gpg --dearmor --yes -o /etc/apt/keyrings/antigravity-repo-key.gpg
-
-        echo "deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main" | \
-          sudo tee /etc/apt/sources.list.d/antigravity.list > /dev/null
-
-        sudo apt update
-        sudo apt install -y antigravity
-      else
-        echo "[+] Antigravity already installed"
-      fi
-      ########################################
-
       # Make sure current directory exists
       mkdir -p ~/vps
       cd ~/vps
@@ -72,6 +51,32 @@
       else
         docker start ubuntu-novnc || true
       fi
+
+      ########################################
+      # Install Antigravity INSIDE container
+      ########################################
+      docker exec ubuntu-novnc bash -lc "
+        if [ ! -f /etc/apt/sources.list.d/antigravity.list ]; then
+          echo '[+] Installing Antigravity inside container'
+
+          apt update
+          apt install -y curl gnupg
+
+          mkdir -p /etc/apt/keyrings
+
+          curl -fsSL https://us-central1-apt.pkg.dev/doc/repo-signing-key.gpg | \
+            gpg --dearmor -o /etc/apt/keyrings/antigravity-repo-key.gpg
+
+          echo 'deb [signed-by=/etc/apt/keyrings/antigravity-repo-key.gpg] https://us-central1-apt.pkg.dev/projects/antigravity-auto-updater-dev/ antigravity-debian main' \
+            > /etc/apt/sources.list.d/antigravity.list
+
+          apt update
+          apt install -y antigravity
+        else
+          echo '[+] Antigravity already installed in container'
+        fi
+      "
+      ########################################
 
       # Wait for Novnc WebSocket port
       while ! nc -z localhost 10000; do sleep 1; done
@@ -112,7 +117,12 @@
       fi
 
       # Keep script alive
-      elapsed=0; while true; do echo "Time elapsed: $elapsed min"; ((elapsed++)); sleep 60; done
+      elapsed=0
+      while true; do
+        echo "Time elapsed: $elapsed min"
+        ((elapsed++))
+        sleep 60
+      done
     '';
   };
 
